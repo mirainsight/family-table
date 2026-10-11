@@ -203,7 +203,7 @@ input[type="text"] { flex: 1 1 150px; }
 
   <section aria-labelledby="h-q">
     <h2 id="h-q">Thinking of cooking something?</h2>
-    <input type="search" id="q" placeholder="Type a food, e.g. coriander, duck, chocolate" aria-label="Search a food" autocomplete="off">
+    <input type="search" id="q" placeholder="Type a food, e.g. coriander, duck, chocolate" aria-label="Search a food" autocomplete="off" list="known">
     <div class="found" id="found" aria-live="polite"></div>
   </section>
 
@@ -222,6 +222,7 @@ input[type="text"] { flex: 1 1 150px; }
   </div>
 </div>
 <dialog class="person" id="person" aria-label="Edit notes"><div id="person-body"></div></dialog>
+<datalist id="known"></datalist>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="config.js"></script>
@@ -388,6 +389,27 @@ input[type="text"] { flex: 1 1 150px; }
   function pbtn(p) { return '<button class="name" type="button" data-act="sheet" data-id="' + esc(p.id) + '">' + esc(p.name) + '</button>'; }
   function openSheet(id) { S.sheet = id; S.editing = null; S.confirm = null; render(); var d = $('person'); if (!d.open) d.showModal(); }
   function closeSheet() { S.sheet = null; var d = $('person'); if (d.open) d.close(); render(); }
+  /* Every food already noted for anyone, offered as suggestions while typing so the
+     same thing is not written two ways ("mango", "Mangos"). */
+  var knownKey = '';
+  function known() {
+    var map = {}, items = [];
+    S.people.forEach(function (p) {
+      ['allergies', 'avoid', 'likes', 'cakes'].forEach(function (k) {
+        list(p, k).forEach(function (it) { var key = it.toLowerCase().trim(); if (key && !map[key]) { map[key] = it; items.push(it); } });
+      });
+    });
+    items.sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+    return { map: map, items: items };
+  }
+  /* What was typed, in the spelling the family already uses if there is one. */
+  function canon(x) { var t = String(x).trim(); return known().map[t.toLowerCase()] || t; }
+  function renderKnown() {
+    var items = known().items, key = items.join('|');
+    if (key === knownKey) return;
+    knownKey = key;
+    $('known').innerHTML = items.map(function (it) { return '<option value="' + esc(it) + '"></option>'; }).join('');
+  }
   function coming() { return S.people.filter(function (p) { return !S.off[p.id]; }); }
   function names(arr) { return arr.length < 2 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]; }
 
@@ -579,7 +601,7 @@ input[type="text"] { flex: 1 1 150px; }
           : '<button class="btn ghost" type="button" data-act="edit" data-id="' + pid + '">' + (ed ? 'Done' : 'Edit') + '</button>') + '</div>';
       if (ed) {
         var kind = S.kind[p.id] || 'avoid';
-        c += '<div class="formrow"><input type="text" id="add-' + pid + '" data-add="1" data-id="' + pid + '" placeholder="Add something, e.g. prawns" aria-label="Add a note">' +
+        c += '<div class="formrow"><input type="text" id="add-' + pid + '" data-add="1" data-id="' + pid + '" placeholder="Add something, e.g. prawns" aria-label="Add a note" list="known" autocomplete="off">' +
           '<select id="kind-' + pid + '" data-kind="' + pid + '" aria-label="What kind of note">' +
           FIELDS.map(function (f) { return '<option value="' + f.k + '"' + (f.k === kind ? ' selected' : '') + '>' + f.label + '</option>'; }).join('') +
           '</select><button class="btn" type="button" data-act="add" data-id="' + pid + '">Add</button></div>';
@@ -617,7 +639,7 @@ input[type="text"] { flex: 1 1 150px; }
     var a = document.activeElement, keep = a && a.id && /^(INPUT|SELECT)$/.test(a.tagName) ? { id: a.id, v: a.value, s: a.selectionStart } : null;
     var drafts = {};
     document.querySelectorAll('input[type="text"]').forEach(function (i) { if (i.id && !i.dataset.prop && i.value) drafts[i.id] = i.value; });
-    show(); renderWho(); renderMeal(); renderSearch(); renderDates(); renderFamily();
+    show(); renderKnown(); renderWho(); renderMeal(); renderSearch(); renderDates(); renderFamily();
     Object.keys(drafts).forEach(function (id) { var e = $(id); if (e) e.value = drafts[id]; });
     if (keep) { var el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.s, keep.s); } catch (e) {} } }
   }
@@ -638,7 +660,7 @@ input[type="text"] { flex: 1 1 150px; }
     var inp = $('add-' + id), p = person(id); if (!inp || !p) return;
     k = $('kind-' + id).value;
     var cur = list(p, k).slice(), have = cur.map(function (x) { return x.toLowerCase(); });
-    var fresh = inp.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x && have.indexOf(x.toLowerCase()) < 0; });
+    var fresh = inp.value.split(',').map(function (x) { return canon(x); }).filter(function (x) { return x && have.indexOf(x.toLowerCase()) < 0; });
     inp.value = '';
     if (fresh.length) setField(id, k, cur.concat(fresh));
   }
@@ -651,7 +673,7 @@ input[type="text"] { flex: 1 1 150px; }
     else if (act === 'sheet') openSheet(id);
     else if (act === 'sheet-close') closeSheet();
     else if (act === 'quickadd') {
-      var term = $('q').value.trim(), qp = person($('qa-who').value), qk = $('qa-kind').value;
+      var term = canon($('q').value), qp = person($('qa-who').value), qk = $('qa-kind').value;
       if (!term || !qp) return;
       if (list(qp, qk).some(function (x) { return x.toLowerCase() === term.toLowerCase(); })) { toast('Already noted for ' + qp.name + '.'); return; }
       setField(qp.id, qk, list(qp, qk).concat([term])); toast('Noted for ' + qp.name + '.');
