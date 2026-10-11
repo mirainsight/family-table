@@ -246,7 +246,7 @@ input[type="text"] { flex: 1 1 150px; }
   };
   var STOP = { cake: 1, cakes: 1, layer: 1, from: 1, childhood: 1, based: 1, flavour: 1, flavours: 1, the: 1, and: 1, with: 1, of: 1, double: 1, indulgence: 1 };
 
-  var S = { status: 'loading', people: [], dates: [], photos: {}, off: {}, open: {}, kind: {}, sheet: null, editing: null, confirm: null, canWrite: true };
+  var S = { status: 'loading', people: [], dates: [], photos: {}, on: {}, open: {}, kind: {}, sheet: null, editing: null, confirm: null, canWrite: true };
   /* Where the notes live: a Google Sheet behind an Apps Script web app (setup/family-sheet.gs).
      Every value is sealed in this browser with a key made from the family passcode, so the sheet,
      the script and this public repo only ever hold ciphertext. */
@@ -355,12 +355,13 @@ input[type="text"] { flex: 1 1 150px; }
       } };
     }
   };
-  try { (JSON.parse(localStorage.getItem('notComing') || '[]')).forEach(function (id) { S.off[id] = 1; }); } catch (e) {}
+  /* Each visit starts with nobody picked; the picks last only until the page is closed. */
+  try { (JSON.parse(sessionStorage.getItem('coming') || '[]')).forEach(function (id) { S.on[id] = 1; }); } catch (e) {}
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function list(p, k) { return Array.isArray(p[k]) ? p[k] : []; }
-  function saveOff() { try { localStorage.setItem('notComing', JSON.stringify(Object.keys(S.off))); } catch (e) {} }
+  function saveOff() { try { sessionStorage.setItem('coming', JSON.stringify(Object.keys(S.on))); } catch (e) {} }
 
   function head(kind, c, mid) {
     var s = '', i;
@@ -410,7 +411,7 @@ input[type="text"] { flex: 1 1 150px; }
     knownKey = key;
     $('known').innerHTML = items.map(function (it) { return '<option value="' + esc(it) + '"></option>'; }).join('');
   }
-  function coming() { return S.people.filter(function (p) { return !S.off[p.id]; }); }
+  function coming() { return S.people.filter(function (p) { return S.on[p.id]; }); }
   function names(arr) { return arr.length < 2 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]; }
 
   function hits(term, item) {
@@ -468,7 +469,7 @@ input[type="text"] { flex: 1 1 150px; }
 
   function renderWho() {
     $('who').innerHTML = S.people.map(function (p, i) {
-      return '<div class="pickwrap"><button class="pick" type="button" data-act="toggle" data-id="' + esc(p.id) + '" aria-pressed="' + (!S.off[p.id]) + '">' + avatar(i, p) + esc(p.name) + '</button>' +
+      return '<div class="pickwrap"><button class="pick" type="button" data-act="toggle" data-id="' + esc(p.id) + '" aria-pressed="' + (!!S.on[p.id]) + '">' + avatar(i, p) + esc(p.name) + '</button>' +
         (S.canWrite ? '<button class="pen" type="button" data-act="sheet" data-id="' + esc(p.id) + '" aria-label="Edit notes for ' + esc(p.name) + '">' + PEN + '</button>' : '') + '</div>';
     }).join('');
     var houses = {}, q = '';
@@ -494,7 +495,7 @@ input[type="text"] { flex: 1 1 150px; }
       S.people.forEach(function (p) {
         var m = list(p, k[0]).filter(function (it) { return matchQ(q, it); });
         if (!m.length) return;
-        var away = !!S.off[p.id];
+        var away = coming().length > 0 && !S.on[p.id];
         if (!away && rank < 2) stop = true;
         if (!away && (rank === 2 || rank === 3)) good = true;
         rows.push('<div class="res ' + k[1] + '">' + pbtn(p) + k[2] + '<b>' + esc(m.join(', ')) + '</b>' + (away ? ' <span class="away">(not coming this time)</span>' : '') + '</div>');
@@ -679,10 +680,10 @@ input[type="text"] { flex: 1 1 150px; }
       setField(qp.id, qk, list(qp, qk).concat([term])); toast('Noted for ' + qp.name + '.');
     }
     else if (act === 'retry') { S.status = 'loading'; render(); refresh(); }
-    else if (act === 'toggle') { if (S.off[id]) delete S.off[id]; else S.off[id] = 1; saveOff(); render(); }
-    else if (act === 'all') { S.off = {}; saveOff(); render(); }
-    else if (act === 'none') { S.people.forEach(function (x) { S.off[x.id] = 1; }); saveOff(); render(); }
-    else if (act === 'house') { S.people.forEach(function (x) { if (x.household === b.dataset.h) delete S.off[x.id]; else S.off[x.id] = 1; }); saveOff(); render(); }
+    else if (act === 'toggle') { if (S.on[id]) delete S.on[id]; else S.on[id] = 1; saveOff(); render(); }
+    else if (act === 'all') { S.on = {}; S.people.forEach(function (x) { S.on[x.id] = 1; }); saveOff(); render(); }
+    else if (act === 'none') { S.on = {}; saveOff(); render(); }
+    else if (act === 'house') { S.on = {}; S.people.forEach(function (x) { if (x.household === b.dataset.h) S.on[x.id] = 1; }); saveOff(); render(); }
     else if (act === 'edit') { S.editing = S.editing === id ? null : id; S.confirm = null; render(); }
     else if (act === 'add') addItems(id, b.dataset.f);
     else if (act === 'rm') { p = person(id); if (p) { var arr = list(p, b.dataset.f).slice(); arr.splice(+b.dataset.n, 1); setField(id, b.dataset.f, arr); } }
