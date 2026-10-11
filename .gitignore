@@ -1,0 +1,4 @@
+# The published site is index.html plus config.js.
+# private/ holds the starter notes and face photos in the clear: never commit it.
+private/
+dev/

@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Ma's Family Table</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Patrick+Hand&display=swap">
+<style>
+/* Layout: a greeting card. Flower garland and hand-lettered title on top, then one column that
+   reads top to bottom: pick who's coming -> what that means for the meal -> dates -> everyone's notes. */
+:root {
+  --paper: #F7EFDD;
+  --card: #FFFAEE;
+  --ink: #2B3A67;
+  --ink-soft: #5E6A8F;
+  --line: #E4D6B6;
+  --pink: #F2A0B5;
+  --rose: #D9566B;
+  --lilac: #A98BC9;
+  --sun: #F6C453;
+  --orange: #EE8E2B;
+  --sky: #8FB8E8;
+  --leaf: #4F8F6B;
+  --mint: #BFE3CF;
+  --alert-bg: #FBDFDA;
+  --alert-ink: #8E2430;
+  --display: "Patrick Hand", "Comic Sans MS", "Segoe Print", cursive;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+#app { display: flex; flex-direction: column; gap: 34px; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 18px; padding-block: 20px 64px; display: flex; flex-direction: column; gap: 34px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; line-height: 1.15; }
+h1 { font-size: clamp(2.5rem, 8vw, 4rem); letter-spacing: .01em; }
+h2 { font-size: 1.9rem; }
+h3 { font-size: 1.45rem; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--lilac); outline-offset: 2px; }
+
+.top { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.garland { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; max-width: 620px; }
+.garland svg { width: 48px; height: 88px; flex: none; }
+.top .sub { color: var(--ink-soft); max-width: 34rem; }
+
+section { display: flex; flex-direction: column; gap: 14px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.hint { color: var(--ink-soft); font-size: .95rem; }
+
+/* who's coming */
+.people { display: flex; flex-wrap: wrap; gap: 10px; }
+.pick { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; width: 108px; padding: 10px 6px 8px; border-radius: 22px; overflow-wrap: anywhere;
+  border: 2px dashed var(--line); background: transparent; color: var(--ink-soft); font-weight: 700; font-size: 1.05rem; }
+.pick svg { width: 84px; height: 84px; opacity: .35; }
+.pick[aria-pressed="true"] { border: 2px solid var(--ink); background: var(--card); color: var(--ink); }
+.pick[aria-pressed="true"] svg { opacity: 1; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.link { background: none; border: 0; padding: 6px 4px; color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--pink); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+
+/* meal summary */
+.sheet { background: var(--card); border: 2px solid var(--ink); border-radius: 22px; padding: 22px; display: flex; flex-direction: column; gap: 20px; }
+.sheet .lead { font-family: var(--display); font-size: 1.45rem; line-height: 1.25; }
+.alert { background: var(--alert-bg); color: var(--alert-ink); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.alert h3 { font-size: 1.35rem; }
+.alert ul, .plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px 28px; }
+.block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.block h3 { display: flex; align-items: center; gap: 8px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; background: var(--sun); }
+.row { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
+.row:last-child { border-bottom: 0; }
+.row b { font-weight: 800; }
+.row span { color: var(--ink-soft); font-size: .95rem; }
+.warn { color: var(--alert-ink); font-weight: 700; }
+.empty { color: var(--ink-soft); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.tile { background: #F9DDE4; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.tile b { font-family: var(--display); font-weight: 400; font-size: 1.45rem; line-height: 1.15; }
+.tile span { font-size: .9rem; color: var(--ink-soft); }
+.tile.bad { background: var(--alert-bg); color: var(--alert-ink); border: 2px solid var(--rose); }
+.tile.bad span { color: var(--alert-ink); }
+.tile .tag { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.folds { display: flex; flex-direction: column; }
+.fold { border-top: 1px dashed var(--line); }
+.fold summary { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; list-style: none; min-height: 52px; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary::after { content: "+"; font-family: var(--display); font-size: 1.8rem; line-height: 1; width: 24px; text-align: center; flex: none; }
+.fold[open] summary::after { content: "–"; }
+.fold .t { font-family: var(--display); font-size: 1.4rem; line-height: 1.15; }
+.fold .teaser { flex: 1; min-width: 0; color: var(--ink-soft); font-size: .92rem; text-align: right; }
+.fold-body { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; }
+.fold.plain-fold { border-top: 0; }
+input[type="search"] { width: 100%; min-height: 56px; padding: 10px 18px; border-radius: 999px; border: 2px solid var(--ink); background: #fff; color: var(--ink); font-size: 1.1rem; }
+.found { display: flex; flex-direction: column; gap: 8px; }
+.found .lead { font-family: var(--display); font-size: 1.45rem; line-height: 1.2; }
+.res { padding: 10px 14px; border-radius: 14px; background: #F1E7CF; }
+.res.bad { background: var(--alert-bg); color: var(--alert-ink); }
+.res.no { background: #F9DDE4; }
+.res.yes { background: var(--mint); }
+.res .away { opacity: .7; font-size: .9rem; }
+
+/* dates */
+.dates { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.date { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); min-width: 0; }
+.date.soon { border-color: var(--rose); }
+.cal { flex: none; width: 54px; text-align: center; font-family: var(--display); line-height: 1; }
+.cal .d { font-size: 1.7rem; display: block; }
+.cal .m { font-size: .95rem; color: var(--rose); text-transform: uppercase; letter-spacing: .06em; }
+.date .what { min-width: 0; flex: 1; }
+.date .when { color: var(--ink-soft); font-size: .92rem; }
+.formrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+input[type="password"] { flex: 1 1 150px; }
+input[type="text"], input[type="password"], select { min-height: 46px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); min-width: 0; }
+input[type="text"] { flex: 1 1 150px; }
+.btn { min-height: 46px; padding: 8px 18px; border-radius: 999px; border: 2px solid var(--ink); background: var(--ink); color: var(--card); font-weight: 700; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.danger { border-color: var(--alert-ink); background: transparent; color: var(--alert-ink); }
+.x { border: 0; background: none; padding: 0 4px; font-size: 1.2rem; line-height: 1; color: inherit; opacity: .7; min-width: 30px; min-height: 30px; }
+
+/* family cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+.card { background: var(--card); border: 1.5px solid var(--line); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card.editing { border: 2px solid var(--ink); }
+.card-head { display: flex; align-items: center; gap: 10px; }
+.card-head svg { width: 92px; height: 92px; flex: none; }
+.card-head .who { flex: 1; min-width: 0; }
+.rel { color: var(--ink-soft); font-size: .92rem; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 4px 12px; border-radius: 999px; background: #F1E7CF; font-weight: 600; font-size: .97rem; overflow-wrap: anywhere; }
+.chip.allergies { background: var(--alert-bg); color: var(--alert-ink); }
+.chip.avoid { background: #F9DDE4; }
+.chip.likes { background: var(--mint); }
+.chip.cakes { background: #FBE7AE; }
+.chip.medical { background: #E6DCF2; }
+.chip.notes { background: #DCE9F8; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--card); padding: 10px 18px; border-radius: 999px; font-weight: 700; max-width: calc(100% - 32px); }
+@media (max-width: 520px) {
+  .garland svg:nth-child(even) { display: none; }
+  .sheet { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="garland" id="garland" aria-hidden="true"></div>
+    <h1>Ma's Family Table</h1>
+    <p class="sub">Who loves what, who can't have what, and the dates to remember.</p>
+  </header>
+
+  <section id="gate" hidden aria-labelledby="h-gate">
+    <div class="sheet">
+      <h2 id="h-gate">Family passcode</h2>
+      <p id="gate-none" hidden>This table is not connected to its sheet yet.</p>
+      <div class="formrow" id="gate-form">
+        <input type="password" id="pass" autocomplete="current-password" aria-label="Family passcode" placeholder="Type the passcode">
+        <button class="btn" type="button" data-act="unlock">Open</button>
+      </div>
+      <p class="hint" id="gate-msg" aria-live="polite"></p>
+      <p class="hint">You only need to type it once on this phone.</p>
+    </div>
+  </section>
+
+  <div id="app">
+  <section aria-labelledby="h-who">
+    <div class="sec-head"><h2 id="h-who">Who's coming?</h2><div class="quick" id="quick"></div></div>
+    <div class="people" id="who"></div>
+  </section>
+
+  <section aria-labelledby="h-meal">
+    <h2 id="h-meal">For this meal</h2>
+    <div id="meal"></div>
+  </section>
+
+  <section aria-labelledby="h-q">
+    <h2 id="h-q">Thinking of cooking something?</h2>
+    <input type="search" id="q" placeholder="Type a food, e.g. coriander, duck, chocolate" aria-label="Search a food" autocomplete="off">
+    <div class="found" id="found" aria-live="polite"></div>
+  </section>
+
+  <section aria-labelledby="h-dates">
+    <div class="sec-head"><h2 id="h-dates">Dates coming up</h2></div>
+    <div id="dates"></div>
+  </section>
+
+  <section aria-labelledby="h-fam">
+    <details class="fold plain-fold">
+      <summary><h2 id="h-fam">Everyone's notes</h2><span class="teaser">Open to read or change</span></summary>
+      <div class="fold-body"><span class="hint" id="fam-hint"></span><div class="cards" id="family"></div></div>
+    </details>
+  </section>
+  <p class="hint"><button class="link" type="button" data-act="forget">Forget the passcode on this device</button></p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var FIELDS = [
+    { k: 'allergies', label: 'Allergic to', ph: 'e.g. prawns' },
+    { k: 'avoid', label: "Doesn't eat", ph: 'e.g. coriander' },
+    { k: 'likes', label: 'Loves', ph: 'e.g. pan mee' },
+    { k: 'cakes', label: 'Cake picks', ph: 'e.g. red velvet' },
+    { k: 'medical', label: 'Health notes', ph: 'e.g. gout prone' },
+    { k: 'notes', label: 'Other notes', ph: 'anything else' }
+  ];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var COLORS = [['#F2A0B5', '#D9566B'], ['#F6C453', '#EE8E2B'], ['#A98BC9', '#8FB8E8'], ['#8FB8E8', '#F6C453'], ['#D9566B', '#F6C453'], ['#BFA7DD', '#2B3A67'], ['#F7B27A', '#D9566B']];
+  var KINDS = ['round', 'daisy', 'tulip'];
+  // words that mean the same thing when checking a favourite against an allergy or dislike
+  var SYN = {
+    nut: ['nut', 'walnut', 'almond', 'peanut', 'hazelnut', 'pecan', 'cashew', 'pistachio', 'praline'],
+    alcohol: ['alcohol', 'rum', 'liqueur', 'wine', 'beer', 'brandy', 'whisky']
+  };
+  var STOP = { cake: 1, cakes: 1, layer: 1, from: 1, childhood: 1, based: 1, flavour: 1, flavours: 1, the: 1, and: 1, with: 1, of: 1, double: 1, indulgence: 1 };
+
+  var S = { status: 'loading', people: [], dates: [], photos: {}, off: {}, open: {}, editing: null, confirm: null, canWrite: true };
+  /* Where the notes live: a Google Sheet behind an Apps Script web app (setup/family-sheet.gs).
+     Every value is sealed in this browser with a key made from the family passcode, so the sheet,
+     the script and this public repo only ever hold ciphertext. */
+  var CFG = window.FAMILY_TABLE || {}, subtle = (window.crypto && window.crypto.subtle) || null;
+  var SALT = 'family-table-v1', ITER = 600000, KEYSTORE = 'familyTableKey';
+  var key = null, token = '', queue = {}, lastLoad = 0;
+  var PREFIX = { people: 'p', dates: 'd' };
+  var PHOTO_OK = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/;
+
+  function b64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s); }
+  function unb64(str) { var s = atob(str), b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+  /* 64 bytes from the passcode: the first half opens the notes, the second half is the
+     write token the sheet script remembers from the first save and asks for ever after. */
+  function derive(pass) {
+    var enc = new TextEncoder();
+    return subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveBits']).then(function (base) {
+      return subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(SALT), iterations: ITER, hash: 'SHA-256' }, base, 512);
+    }).then(function (buf) { return new Uint8Array(buf); });
+  }
+  function useBits(bits) {
+    if (bits.length !== 64) return Promise.reject(new Error('bad key'));
+    token = Array.prototype.map.call(bits.slice(32), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+    return subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']).then(function (k) { key = k; });
+  }
+  function seal(obj) {
+    var iv = window.crypto.getRandomValues(new Uint8Array(12));
+    return subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj))).then(function (ct) {
+      var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12); return b64(out);
+    });
+  }
+  /* Anything that will not open was sealed with another passcode: skip it. */
+  function unseal(blob) {
+    var raw;
+    try { raw = unb64(blob); } catch (e) { return Promise.resolve(null); }
+    if (raw.length < 13) return Promise.resolve(null);
+    return subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, key, raw.slice(12)).then(function (pt) {
+      try { return JSON.parse(new TextDecoder().decode(pt)); } catch (e) { return null; }
+    }).catch(function () { return null; });
+  }
+  /* text/plain keeps this a "simple" request, so Apps Script is never asked for a CORS preflight. */
+  function send(body) {
+    body.t = token;
+    return fetch(CFG.endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (r) { if (!r || !r.ok) throw { code: r && r.error === 'denied' ? 'denied' : 'unavailable' }; });
+  }
+  function put(k, obj) { return seal(obj).then(function (v) { return send({ op: 'put', k: k, v: v }); }); }
+  /* Resolves false when there are rows but none open with this passcode. */
+  function load() {
+    var url = CFG.endpoint + (CFG.endpoint.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+    return fetch(url, { method: 'GET', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (res) {
+      var rows = (res && res.rows) || [];
+      return Promise.all(rows.map(function (r) { return unseal(r.v).then(function (o) { return { k: String(r.k), o: o }; }); })).then(function (all) {
+        var good = all.filter(function (x) { return x.o && typeof x.o === 'object'; });
+        if (rows.length && !good.length) return false;
+        var people = [], dates = [], photos = {};
+        good.forEach(function (x) {
+          var kind = x.k.charAt(0), id = x.k.slice(2);
+          if (kind === 'p') people.push(Object.assign({}, x.o, { id: id }));
+          else if (kind === 'd') dates.push(Object.assign({}, x.o, { id: id }));
+          else if (kind === 'f' && PHOTO_OK.test(x.o.src || '')) photos[id] = x.o.src;
+        });
+        people.sort(function (a, b) { return (a.order || 99) - (b.order || 99) || String(a.name).localeCompare(String(b.name)); });
+        S.people = people; S.dates = dates; S.photos = photos;
+        return true;
+      });
+    });
+  }
+  function rowsOf(name) { return name === 'people' ? S.people : S.dates; }
+  function bare(doc) { var o = Object.assign({}, doc); delete o.id; return o; }
+  /* The page talks to a small document store; this maps it onto sealed sheet rows.
+     Changes show at once and are then saved; a failed save reloads what the sheet has. */
+  var DB = {
+    doc: function (path) {
+      var name = path.split('/')[0], id = path.split('/')[1], k = PREFIX[name] + ':' + id;
+      return {
+        update: function (o) {
+          var d = rowsOf(name).filter(function (x) { return x.id === id; })[0];
+          if (!d) return Promise.reject({ code: 'unavailable' });
+          Object.assign(d, o); render();
+          return put(k, bare(d));
+        },
+        delete: function () {
+          if (name === 'people') { S.people = S.people.filter(function (x) { return x.id !== id; }); delete S.photos[id]; }
+          else S.dates = S.dates.filter(function (x) { return x.id !== id; });
+          render();
+          return send({ op: 'del', k: k }).then(function () { if (name === 'people') return send({ op: 'del', k: 'f:' + id }); });
+        }
+      };
+    },
+    collection: function (name) {
+      return { add: function (data) {
+        var id = Math.random().toString(36).slice(2, 10);
+        rowsOf(name).push(Object.assign({ id: id }, data)); render();
+        return put(PREFIX[name] + ':' + id, data).then(function () { return { id: id }; });
+      } };
+    }
+  };
+  try { (JSON.parse(localStorage.getItem('notComing') || '[]')).forEach(function (id) { S.off[id] = 1; }); } catch (e) {}
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function list(p, k) { return Array.isArray(p[k]) ? p[k] : []; }
+  function saveOff() { try { localStorage.setItem('notComing', JSON.stringify(Object.keys(S.off))); } catch (e) {} }
+
+  function head(kind, c, mid) {
+    var s = '', i;
+    if (kind === 'daisy') { for (i = 0; i < 10; i++) s += '<ellipse cx="0" cy="-10" rx="3.4" ry="8" fill="' + c + '" transform="rotate(' + i * 36 + ')"/>'; s += '<circle r="5.5" fill="' + mid + '"/>'; }
+    else if (kind === 'tulip') { s = '<path d="M-10,-8 Q-11,10 0,13 Q11,10 10,-8 L5,0 L0,-10 L-5,0 Z" fill="' + c + '"/>'; }
+    else { for (i = 0; i < 5; i++) s += '<circle cx="0" cy="-8.5" r="7.2" fill="' + c + '" transform="rotate(' + i * 72 + ')"/>'; s += '<circle r="5" fill="' + mid + '"/>'; }
+    return s;
+  }
+  var clipN = 0;
+  function avatar(i, p) {
+    var c = COLORS[i % COLORS.length], photo = (p && PHOTO_OK.test(S.photos[p.id] || '')) ? S.photos[p.id] : '', s = '', k;
+    if (!photo) return '<svg viewBox="-20 -20 40 40" aria-hidden="true">' + head(KINDS[i % 3], c[0], c[1]) + '</svg>';
+    // a face sits where the flower's centre would be, with petals around it
+    for (k = 0; k < 8; k++) s += '<circle cx="0" cy="-14" r="5.8" fill="' + c[0] + '" transform="rotate(' + k * 45 + ')"/>';
+    var id = 'face' + (++clipN);
+    return '<svg viewBox="-20 -20 40 40" aria-hidden="true">' + s + '<clipPath id="' + id + '"><circle r="14.5"/></clipPath><image href="' + photo + '" x="-14.5" y="-14.5" width="29" height="29" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + id + ')"/></svg>';
+  }
+  function stemmed(i) {
+    var c = COLORS[i % COLORS.length];
+    return '<svg viewBox="-20 -20 40 74"><line x1="0" y1="8" x2="0" y2="54" stroke="#4F8F6B" stroke-width="2.6" stroke-linecap="round"/>' +
+      '<path d="M0,42 Q-14,36 -15,24 Q-3,28 0,42Z" fill="#4F8F6B"/><path d="M0,34 Q14,28 15,16 Q3,20 0,34Z" fill="#7CC4A0"/>' + head(KINDS[i % 3], c[0], c[1]) + '</svg>';
+  }
+
+  function coming() { return S.people.filter(function (p) { return !S.off[p.id]; }); }
+  function names(arr) { return arr.length < 2 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]; }
+
+  function hits(term, item) {
+    var t = term.toLowerCase().trim(); if (!t) return false;
+    var base = t.length > 3 ? t.replace(/e?s$/, '') : t;
+    var cands = [t, base].concat(SYN[t] || SYN[base] || []);
+    var it = item.toLowerCase();
+    return cands.some(function (c) {
+      return new RegExp('(^|[^a-z])' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(s|es)?([^a-z]|$)').test(it);
+    });
+  }
+  function clashes(ppl) {
+    var out = [];
+    ppl.forEach(function (a) {
+      [['allergies', ' is allergic to '], ['avoid', " doesn't eat "]].forEach(function (kind) {
+        list(a, kind[0]).forEach(function (term) {
+          ppl.forEach(function (b) {
+            if (b.id === a.id) return;
+            [['likes', ' loves '], ['cakes', "'s cake pick is "]].forEach(function (f) {
+              list(b, f[0]).forEach(function (item) {
+                if (hits(term, item)) out.push({ bad: kind[0] === 'allergies', key: b.id + '|' + item, text: esc(b.name) + f[1] + '<b>' + esc(item) + '</b>, but ' + esc(a.name) + kind[1] + esc(term) + '.' });
+              });
+            });
+          });
+        });
+      });
+    });
+    return out.sort(function (x, y) { return (y.bad ? 1 : 0) - (x.bad ? 1 : 0); });
+  }
+  function tokens(item) {
+    return item.toLowerCase().replace(/\(.*?\)/g, ' ').replace(/cheesecake/g, 'cheese').split(/[^a-z]+/).filter(function (w) { return w && !STOP[w]; });
+  }
+  function sharedFlavours(ppl) {
+    var phrase = {}, tok = {};
+    function put(map, key, name) { if (!key) return; (map[key] = map[key] || []); if (map[key].indexOf(name) < 0) map[key].push(name); }
+    ppl.forEach(function (p) {
+      list(p, 'cakes').forEach(function (item) {
+        var t = tokens(item); put(phrase, t.join(' '), p.name); t.forEach(function (w) { put(tok, w, p.name); });
+      });
+    });
+    var out = [], k;
+    for (k in phrase) if (phrase[k].length > 1) out.push({ label: k, who: phrase[k] });
+    for (k in tok) {
+      if (tok[k].length < 2) continue;
+      var covered = out.some(function (o) { return o.label.split(' ').indexOf(k) >= 0 && o.who.length >= tok[k].length; });
+      if (!covered) out.push({ label: k, who: tok[k] });
+    }
+    return out.sort(function (a, b) { return b.who.length - a.who.length; });
+  }
+  function daysUntil(m, d) {
+    var n = new Date(), t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    var x = new Date(t.getFullYear(), m - 1, d); if (x < t) x = new Date(t.getFullYear() + 1, m - 1, d);
+    return Math.round((x - t) / 864e5);
+  }
+
+  function renderWho() {
+    $('who').innerHTML = S.people.map(function (p, i) {
+      return '<button class="pick" type="button" data-act="toggle" data-id="' + esc(p.id) + '" aria-pressed="' + (!S.off[p.id]) + '">' + avatar(i, p) + esc(p.name) + '</button>';
+    }).join('');
+    var houses = {}, q = '';
+    S.people.forEach(function (p) { if (p.household) (houses[p.household] = houses[p.household] || []).push(p.id); });
+    if (S.people.length) {
+      q += '<button class="link" type="button" data-act="all">Everyone</button>';
+      Object.keys(houses).forEach(function (h) { if (houses[h].length > 1) q += '<button class="link" type="button" data-act="house" data-h="' + esc(h) + '">' + esc(h) + '</button>'; });
+      q += '<button class="link" type="button" data-act="none">Clear</button>';
+    }
+    $('quick').innerHTML = q;
+  }
+
+  function block(key, color, title, teaser, inner) {
+    return '<details class="fold" data-key="' + key + '"' + (S.open[key] ? ' open' : '') + '><summary><span class="dot" style="background:' + color + '"></span><span class="t">' + title + '</span><span class="teaser">' + esc(teaser) + '</span></summary><div class="fold-body">' + inner + '</div></details>';
+  }
+  function matchQ(q, item) { return item.toLowerCase().indexOf(q) >= 0 || hits(item, q) || hits(q, item); }
+  function renderSearch() {
+    var q = $('q').value.toLowerCase().trim(), el = $('found');
+    if (q.length < 2 || S.status !== 'ok') { el.innerHTML = ''; return; }
+    var KINDS_Q = [['allergies', 'bad', ' is allergic to '], ['avoid', 'no', " doesn't eat "], ['likes', 'yes', ' loves '], ['cakes', 'yes', ' picked the cake '], ['notes', '', ': ']];
+    var rows = [], stop = false, good = false;
+    KINDS_Q.forEach(function (k, rank) {
+      S.people.forEach(function (p) {
+        var m = list(p, k[0]).filter(function (it) { return matchQ(q, it); });
+        if (!m.length) return;
+        var away = !!S.off[p.id];
+        if (!away && rank < 2) stop = true;
+        if (!away && (rank === 2 || rank === 3)) good = true;
+        rows.push('<div class="res ' + k[1] + '"><b>' + esc(p.name) + '</b>' + k[2] + '<b>' + esc(m.join(', ')) + '</b>' + (away ? ' <span class="away">(not coming this time)</span>' : '') + '</div>');
+      });
+    });
+    var word = '“' + esc($('q').value.trim()) + '”';
+    var lead = !rows.length ? 'Nothing noted about ' + word + ' yet.' : stop ? 'Careful with ' + word + '.' : good ? word + ' looks like a good pick.' : 'Here is what is noted about ' + word + '.';
+    el.innerHTML = '<p class="lead">' + lead + '</p>' + rows.join('');
+  }
+  function renderMeal() {
+    var el = $('meal');
+    if (S.status === 'loading') { el.innerHTML = '<div class="sheet"><p class="empty">Fetching the family notes…</p></div>'; return; }
+    if (S.status === 'nodb') { el.innerHTML = '<div class="sheet"><p class="lead">The family notes could not be reached.</p><p class="empty">Check the internet connection, then close and open this page again.</p></div>'; return; }
+    if (!S.people.length) { el.innerHTML = '<div class="sheet"><p class="lead">No one is here yet.</p><p class="empty">Add the first person under “Everyone’s notes” below, or load the starter file. The passcode you just typed becomes the family passcode with the first save.</p><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Load starter file<input type="file" id="seed" accept=".json,application/json" hidden></label></div></div>'; return; }
+    var ppl = coming();
+    if (!ppl.length) { el.innerHTML = '<div class="sheet"><p class="lead">Tap the names above to pick who is coming.</p></div>'; return; }
+
+    var tiles = [], seen = {};
+    function tile(t, name, allergy) {
+      var k = (allergy ? 'a|' : 'd|') + t.toLowerCase().trim();
+      if (!seen[k]) { seen[k] = { label: t, who: [], allergy: allergy ? 1 : 0 }; tiles.push(seen[k]); }
+      seen[k].who.push(name);
+    }
+    ppl.forEach(function (p) {
+      list(p, 'allergies').forEach(function (t) { tile(t, p.name, true); });
+      list(p, 'avoid').forEach(function (t) { tile(t, p.name, false); });
+    });
+    tiles.sort(function (a, b) { return (b.allergy - a.allergy) || (b.who.length - a.who.length); });
+    var h = '<p class="lead">' + (tiles.length ? 'Leave these out' : 'Nothing to leave out for this group.') + '</p>';
+    if (tiles.length) h += '<div class="tiles">' + tiles.map(function (t) {
+      return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + esc(names(t.who)) + '</span></div>';
+    }).join('') + '</div>';
+    var cl = clashes(ppl), flagged = {};
+    cl.forEach(function (c) { flagged[c.key] = 1; });
+    var cols = '';
+    if (cl.length) cols += block('clash', 'var(--rose)', 'Favourites that clash', cl.length + ' to check', '<ul class="plain">' + cl.map(function (c) { return '<li class="' + (c.bad ? 'warn' : '') + '">' + c.text + '</li>'; }).join('') + '</ul>');
+
+    var avoid = {}, order = [];
+    ppl.forEach(function (p) { list(p, 'avoid').forEach(function (t) { var k = t.toLowerCase().trim(); if (!avoid[k]) { avoid[k] = { label: t, who: [] }; order.push(k); } avoid[k].who.push(p.name); }); });
+    order.sort(function (a, b) { return avoid[b].who.length - avoid[a].who.length; });
+
+    function perPerson(k) {
+      return ppl.filter(function (p) { return list(p, k).length; }).map(function (p) {
+        return '<div class="row"><b>' + esc(p.name) + '</b><span>' + list(p, k).map(function (it) {
+          return flagged[p.id + '|' + it] ? '<span class="warn">' + esc(it) + ' (check)</span>' : esc(it);
+        }).join(', ') + '</span></div>';
+      }).join('');
+    }
+    var shared = sharedFlavours(ppl), cakes = perPerson('cakes');
+    var ch = shared.length ? '<p><b>Flavours more than one person picked:</b></p>' + shared.map(function (s) {
+      return '<div class="row"><b>' + esc(s.label.charAt(0).toUpperCase() + s.label.slice(1)) + '</b><span>' + esc(names(s.who)) + '</span></div>';
+    }).join('') + '<p class="label" style="margin-top:6px">Each person</p>' : '';
+    cols += block('cakes', 'var(--sun)', 'Cake ideas', shared.slice(0, 3).map(function (s) { return s.label; }).join(', '), cakes ? ch + cakes : '<p class="empty">No cake picks noted for this group.</p>');
+    var likes = perPerson('likes');
+    cols += block('likes', 'var(--leaf)', 'Favourite foods', '', likes || '<p class="empty">No favourites noted for this group yet.</p>');
+    var other = ppl.filter(function (p) { return list(p, 'medical').length || list(p, 'notes').length; });
+    if (other.length) cols += block('other', 'var(--lilac)', 'Good to know', names(other.map(function (p) { return p.name; })), other.map(function (p) {
+      return '<div class="row"><b>' + esc(p.name) + '</b><span>' + esc(list(p, 'medical').concat(list(p, 'notes')).join('; ')) + '</span></div>';
+    }).join(''));
+    el.innerHTML = '<div class="sheet">' + h + '<div class="folds">' + cols + '</div></div>';
+  }
+
+  function dayMonthSelects(idp, m, d) {
+    var s = '<select id="' + idp + '-d" aria-label="Day"><option value="">Day</option>';
+    for (var i = 1; i <= 31; i++) s += '<option' + (d === i ? ' selected' : '') + '>' + i + '</option>';
+    s += '</select><select id="' + idp + '-m" aria-label="Month"><option value="">Month</option>';
+    MONTHS.forEach(function (n, j) { s += '<option value="' + (j + 1) + '"' + (m === j + 1 ? ' selected' : '') + '>' + n + '</option>'; });
+    return s + '</select>';
+  }
+  function renderDates() {
+    if (S.status !== 'ok') { $('dates').innerHTML = ''; return; }
+    var items = [], missing = [];
+    S.people.forEach(function (p) {
+      if (p.bdayMonth && p.bdayDay) items.push({ label: p.name + "'s birthday", m: p.bdayMonth, d: p.bdayDay });
+      else missing.push(p.name);
+    });
+    S.dates.forEach(function (x) { if (x.month && x.day) items.push({ label: x.label, m: x.month, d: x.day, id: x.id }); });
+    items.forEach(function (x) { x.n = daysUntil(x.m, x.d); });
+    items.sort(function (a, b) { return a.n - b.n; });
+    var h = items.length ? '<div class="dates">' + items.map(function (x) {
+      var when = x.n === 0 ? 'Today' : x.n === 1 ? 'Tomorrow' : 'in ' + x.n + ' days';
+      return '<div class="date' + (x.n <= 14 ? ' soon' : '') + '"><div class="cal"><span class="d">' + x.d + '</span><span class="m">' + MONTHS[x.m - 1] + '</span></div>' +
+        '<div class="what"><b>' + esc(x.label) + '</b><div class="when">' + when + '</div></div>' +
+        (x.id && S.canWrite ? '<button class="x" type="button" data-act="rmdate" data-id="' + esc(x.id) + '" aria-label="Remove ' + esc(x.label) + '">×</button>' : '') + '</div>';
+    }).join('') + '</div>' : '<p class="empty">No dates added yet.</p>';
+    if (missing.length) h += '<p class="hint">Birthdays not added yet: ' + esc(names(missing)) + '.' + (S.canWrite ? ' Tap Edit on their card to add one.' : '') + '</p>';
+    if (S.canWrite) h += '<div class="formrow"><input type="text" id="newdate-label" placeholder="Another date, e.g. Wedding anniversary" aria-label="What is the date for">' + dayMonthSelects('newdate', 0, 0) + '<button class="btn ghost" type="button" data-act="adddate">Add date</button></div>';
+    $('dates').innerHTML = h;
+  }
+
+  function renderFamily() {
+    if (S.status !== 'ok') { $('family').innerHTML = ''; $('fam-hint').textContent = ''; return; }
+    $('fam-hint').textContent = S.canWrite ? 'Tap Edit on a card to add or remove things. Changes save by themselves.' : 'You can read these notes. Ask Mira if something needs changing.';
+    var h = S.people.map(function (p, i) {
+      var ed = S.editing === p.id, pid = esc(p.id);
+      var bd = p.bdayMonth && p.bdayDay ? 'Birthday ' + p.bdayDay + ' ' + MONTHS[p.bdayMonth - 1] : '';
+      var c = '<article class="card' + (ed ? ' editing' : '') + '"><div class="card-head">' + avatar(i, p) + '<div class="who"><h3>' + esc(p.name) + '</h3><p class="rel">' + esc([p.relation, bd].filter(Boolean).join(' · ')) + '</p></div>' +
+        (S.canWrite ? '<button class="btn ghost" type="button" data-act="edit" data-id="' + pid + '">' + (ed ? 'Done' : 'Edit') + '</button>' : '') + '</div>';
+      if (ed) {
+        c += '<div class="field"><span class="label">Name and who they are</span><div class="formrow"><input type="text" id="p-' + pid + '-name" data-prop="name" data-id="' + pid + '" value="' + esc(p.name) + '" aria-label="Name"><input type="text" id="p-' + pid + '-relation" data-prop="relation" data-id="' + pid + '" value="' + esc(p.relation) + '" placeholder="e.g. Brian\'s wife" aria-label="Who they are"></div></div>' +
+          '<div class="field"><span class="label">Birthday</span><div class="formrow" data-bd="' + pid + '">' + dayMonthSelects('bd-' + pid, p.bdayMonth, p.bdayDay) + '</div></div>' +
+          '<div class="field"><span class="label">Photo</span><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">' + (S.photos[p.id] ? 'Change photo' : 'Add a photo') + '<input type="file" accept="image/*" data-photo="' + pid + '" hidden></label></div></div>';
+      }
+      var any = false;
+      FIELDS.forEach(function (f) {
+        var items = list(p, f.k); if (!items.length && !ed) return; any = true;
+        c += '<div class="field"><span class="label">' + f.label + '</span><div class="chips">' + items.map(function (it, n) {
+          return '<span class="chip ' + f.k + '">' + esc(it) + (ed ? '<button class="x" type="button" data-act="rm" data-id="' + pid + '" data-f="' + f.k + '" data-n="' + n + '" aria-label="Remove ' + esc(it) + '">×</button>' : '') + '</span>';
+        }).join('') + '</div>' + (ed ? '<div class="formrow"><input type="text" id="add-' + pid + '-' + f.k + '" data-add="1" data-id="' + pid + '" data-f="' + f.k + '" placeholder="' + f.ph + '" aria-label="Add to ' + f.label + '"><button class="btn ghost" type="button" data-act="add" data-id="' + pid + '" data-f="' + f.k + '">Add</button></div>' : '') + '</div>';
+      });
+      if (!any) c += '<p class="empty">Nothing noted yet.</p>';
+      if (ed) c += S.confirm === p.id
+        ? '<div class="formrow"><span>Remove ' + esc(p.name) + ' and all their notes?</span><button class="btn danger" type="button" data-act="del-yes" data-id="' + pid + '">Yes, remove</button><button class="btn ghost" type="button" data-act="del-no">Keep</button></div>'
+        : '<div><button class="link" type="button" data-act="del-ask" data-id="' + pid + '">Remove ' + esc(p.name) + '</button></div>';
+      return c + '</article>';
+    }).join('');
+    if (S.canWrite) h += '<article class="card"><h3>Add someone</h3><div class="field"><input type="text" id="new-name" placeholder="Name" aria-label="Name"><input type="text" id="new-relation" placeholder="Who they are, e.g. Emily\'s husband" aria-label="Who they are"></div><div><button class="btn" type="button" data-act="addperson">Add to the family</button></div></article>';
+    $('family').innerHTML = h;
+  }
+
+  function render() {
+    var a = document.activeElement, keep = a && a.id && /^(INPUT|SELECT)$/.test(a.tagName) ? { id: a.id, v: a.value, s: a.selectionStart } : null;
+    var drafts = {};
+    document.querySelectorAll('input[type="text"]').forEach(function (i) { if (i.id && !i.dataset.prop && i.value) drafts[i.id] = i.value; });
+    show(); renderWho(); renderMeal(); renderSearch(); renderDates(); renderFamily();
+    Object.keys(drafts).forEach(function (id) { var e = $(id); if (e) e.value = drafts[id]; });
+    if (keep) { var el = $(keep.id); if (el) { el.value = keep.v; el.focus(); try { el.setSelectionRange(keep.s, keep.s); } catch (e) {} } }
+  }
+
+  var toastT;
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 3500); }
+  function fail(e) {
+    if (e && e.code === 'invalid_argument') { S.canWrite = false; S.editing = null; render(); toast('This view cannot save changes.'); }
+    else if (e && e.code === 'quota_exceeded') toast('The notes are full. Remove something first.');
+    else if (e && e.code === 'denied') toast('The passcode on this device cannot save changes.');
+    else { toast('That did not save. Please try again.'); refresh(); }
+  }
+  function write(key, fn) { queue[key] = (queue[key] || Promise.resolve()).then(fn).catch(fail); }
+  function person(id) { return S.people.filter(function (p) { return p.id === id; })[0]; }
+  function setField(id, k, arr) { write(id, function () { var o = {}; o[k] = arr; return DB.doc('people/' + id).update(o); }); }
+
+  function addItems(id, k) {
+    var inp = $('add-' + id + '-' + k), p = person(id); if (!inp || !p) return;
+    var cur = list(p, k).slice(), have = cur.map(function (x) { return x.toLowerCase(); });
+    var fresh = inp.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x && have.indexOf(x.toLowerCase()) < 0; });
+    inp.value = '';
+    if (fresh.length) setField(id, k, cur.concat(fresh));
+  }
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id, p;
+    if (act === 'unlock') unlock();
+    else if (act === 'forget') lock('');
+    else if (act === 'toggle') { if (S.off[id]) delete S.off[id]; else S.off[id] = 1; saveOff(); render(); }
+    else if (act === 'all') { S.off = {}; saveOff(); render(); }
+    else if (act === 'none') { S.people.forEach(function (x) { S.off[x.id] = 1; }); saveOff(); render(); }
+    else if (act === 'house') { S.people.forEach(function (x) { if (x.household === b.dataset.h) delete S.off[x.id]; else S.off[x.id] = 1; }); saveOff(); render(); }
+    else if (act === 'edit') { S.editing = S.editing === id ? null : id; S.confirm = null; render(); }
+    else if (act === 'add') addItems(id, b.dataset.f);
+    else if (act === 'rm') { p = person(id); if (p) { var arr = list(p, b.dataset.f).slice(); arr.splice(+b.dataset.n, 1); setField(id, b.dataset.f, arr); } }
+    else if (act === 'del-ask') { S.confirm = id; render(); }
+    else if (act === 'del-no') { S.confirm = null; render(); }
+    else if (act === 'del-yes') { S.confirm = null; S.editing = null; write(id, function () { return DB.doc('people/' + id).delete(); }); }
+    else if (act === 'addperson') {
+      var n = $('new-name').value.trim(); if (!n) { toast('Type a name first.'); return; }
+      var rel = $('new-relation').value.trim(), ord = S.people.reduce(function (m, x) { return Math.max(m, +x.order || 0); }, 0) + 1;
+      $('new-name').value = ''; $('new-relation').value = '';
+      write('new', function () { return DB.collection('people').add({ name: n, relation: rel, order: ord, allergies: [], avoid: [], likes: [], cakes: [], medical: [], notes: [] }).then(function (ref) { S.editing = ref.id; render(); }); });
+    }
+    else if (act === 'adddate') {
+      var l = $('newdate-label').value.trim(), d = +$('newdate-d').value, m = +$('newdate-m').value;
+      if (!l || !d || !m) { toast('Add a name, a day and a month.'); return; }
+      $('newdate-label').value = ''; $('newdate-d').value = ''; $('newdate-m').value = '';
+      write('date', function () { return DB.collection('dates').add({ label: l, day: d, month: m }); });
+    }
+    else if (act === 'rmdate') write('date', function () { return DB.doc('dates/' + id).delete(); });
+  });
+  $('q').addEventListener('input', renderSearch);
+  document.addEventListener('toggle', function (ev) { var k = ev.target.dataset && ev.target.dataset.key; if (k) S.open[k] = ev.target.open; }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return;
+    var t = ev.target;
+    if (t.id === 'pass') unlock();
+    else if (t.dataset && t.dataset.add) { ev.preventDefault(); addItems(t.dataset.id, t.dataset.f); }
+    else if (t.dataset && t.dataset.prop) t.blur();
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target, o = {};
+    if (t.id === 'seed') {
+      if (!t.files[0]) return;
+      toast('Loading the starter notes…');
+      t.files[0].text().then(function (txt) {
+        var d = JSON.parse(txt), jobs = Promise.resolve();
+        (d.people || []).forEach(function (p) {
+          var body = bare(p), photo = body.photo; delete body.photo;
+          jobs = jobs.then(function () { return put('p:' + p.id, body); });
+          if (PHOTO_OK.test(photo || '')) jobs = jobs.then(function () { return put('f:' + p.id, { src: photo }); });
+        });
+        (d.dates || []).forEach(function (x) { jobs = jobs.then(function () { return put('d:' + x.id, bare(x)); }); });
+        return jobs;
+      }).then(function () { toast('Starter notes loaded.'); return refresh(); }).catch(fail);
+      return;
+    }
+    if (t.dataset.photo) {
+      var file = t.files[0], pid = t.dataset.photo;
+      if (!file) return;
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        // square crop, leaning to the top of tall photos where faces usually are
+        var w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h), c = document.createElement('canvas');
+        c.width = c.height = 240;
+        c.getContext('2d').drawImage(img, (w - s) / 2, (h - s) * 0.3, s, s, 0, 0, 240, 240);
+        URL.revokeObjectURL(url);
+        var src = c.toDataURL('image/jpeg', 0.82);
+        S.photos[pid] = src; render();
+        write('f' + pid, function () { return put('f:' + pid, { src: src }); });
+      };
+      img.onerror = function () { toast('That photo could not be read.'); };
+      img.src = url;
+      return;
+    }
+    if (t.dataset.prop) {
+      var p = person(t.dataset.id), v = t.value.trim();
+      if (!p || (t.dataset.prop === 'name' && !v) || v === (p[t.dataset.prop] || '')) return;
+      o[t.dataset.prop] = v; write(p.id, function () { return DB.doc('people/' + p.id).update(o); });
+    } else if (t.parentNode && t.parentNode.dataset && t.parentNode.dataset.bd) {
+      var id = t.parentNode.dataset.bd, d = +$('bd-' + id + '-d').value, m = +$('bd-' + id + '-m').value;
+      if ((d && m) || (!d && !m)) { o = { bdayDay: d || 0, bdayMonth: m || 0 }; write(id, function () { return DB.doc('people/' + id).update(o); }); }
+    }
+  });
+
+  var g = ''; for (var i = 0; i < 7; i++) g += stemmed(i); $('garland').innerHTML = g;
+  render();
+
+  function show() {
+    var off = S.status === 'locked' || S.status === 'noconfig';
+    $('gate').hidden = !off; $('app').hidden = off;
+    $('gate-none').hidden = S.status !== 'noconfig'; $('gate-form').hidden = S.status === 'noconfig';
+  }
+  function refresh() {
+    lastLoad = Date.now();
+    return load().then(function (ok) {
+      if (ok === false) { lock('That passcode did not open the notes. Try again.'); return; }
+      S.status = 'ok'; render();
+    }).catch(function () { if (S.status !== 'ok') { S.status = 'nodb'; render(); } });
+  }
+  function lock(msg) {
+    key = null; token = '';
+    try { localStorage.removeItem(KEYSTORE); } catch (e) {}
+    S.status = 'locked'; S.people = []; S.dates = []; S.photos = {}; S.editing = null;
+    $('gate-msg').textContent = msg || ''; render();
+  }
+  function unlock() {
+    var pass = $('pass').value;
+    if (pass.length < 4) { $('gate-msg').textContent = 'Type the family passcode.'; return; }
+    $('gate-msg').textContent = 'Opening…';
+    derive(pass).then(function (bits) {
+      try { localStorage.setItem(KEYSTORE, b64(bits)); } catch (e) {}
+      return useBits(bits);
+    }).then(function () {
+      $('pass').value = ''; $('gate-msg').textContent = ''; S.status = 'loading'; render(); return refresh();
+    }).catch(function () { $('gate-msg').textContent = 'This browser could not open the notes.'; });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && S.status === 'ok' && !S.editing && Date.now() - lastLoad > 30000) refresh();
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEYSTORE); } catch (e) {}
+  if (!CFG.endpoint || !subtle) { S.status = 'noconfig'; render(); }
+  else if (saved) { useBits(unb64(saved)).then(function () { render(); return refresh(); }).catch(function () { lock(''); }); }
+  else { S.status = 'locked'; render(); }
+})();
+</script>
+</body>
+</html>
