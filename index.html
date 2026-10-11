@@ -264,13 +264,15 @@ input[type="text"] { flex: 1 1 150px; }
   function seal(obj) {
     var iv = window.crypto.getRandomValues(new Uint8Array(12));
     return subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj))).then(function (ct) {
-      var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12); return b64(out);
+      var out = new Uint8Array(12 + ct.byteLength); out.set(iv, 0); out.set(new Uint8Array(ct), 12);
+      /* The prefix keeps Sheets from reading a value that happens to start with + or = as a formula. */
+      return 'v1.' + b64(out);
     });
   }
   /* Anything that will not open was sealed with another passcode: skip it. */
   function unseal(blob) {
     var raw;
-    try { raw = unb64(blob); } catch (e) { return Promise.resolve(null); }
+    try { raw = unb64(String(blob).replace(/^v1\./, '')); } catch (e) { return Promise.resolve(null); }
     if (raw.length < 13) return Promise.resolve(null);
     return subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, key, raw.slice(12)).then(function (pt) {
       try { return JSON.parse(new TextDecoder().decode(pt)); } catch (e) { return null; }
@@ -281,7 +283,7 @@ input[type="text"] { flex: 1 1 150px; }
     body.t = token;
     return fetch(CFG.endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json(); })
-      .then(function (r) { if (!r || !r.ok) throw { code: r && r.error === 'denied' ? 'denied' : 'unavailable' }; });
+      .then(function (r) { if (!r || !r.ok) throw { code: r && r.error === 'denied' ? 'denied' : 'unavailable', detail: String((r && r.error) || 'no answer') }; });
   }
   function put(k, obj) { return seal(obj).then(function (v) { return send({ op: 'put', k: k, v: v }); }); }
   /* Resolves false when there are rows but none open with this passcode. */
@@ -469,7 +471,7 @@ input[type="text"] { flex: 1 1 150px; }
     var el = $('meal');
     if (S.status === 'loading') { el.innerHTML = '<div class="sheet"><p class="empty">Fetching the family notes…</p></div>'; return; }
     if (S.status === 'nodb') { el.innerHTML = '<div class="sheet"><p class="lead">The family notes could not be reached.</p><p class="empty">The notes are slow to answer sometimes. Check the internet connection and try again.</p><div><button class="btn" type="button" data-act="retry">Try again</button></div></div>'; return; }
-    if (!S.people.length) { el.innerHTML = '<div class="sheet"><p class="lead">No one is here yet.</p><p class="empty">Add the first person under “Everyone’s notes” below, or load the starter file. The passcode you just typed becomes the family passcode with the first save.</p><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Load starter file<input type="file" id="seed" accept=".json,application/json" hidden></label></div></div>'; return; }
+    if (!S.people.length) { el.innerHTML = '<div class="sheet">' + (S.seedError ? '<div class="alert"><b>The starter notes did not load.</b><span>' + esc(S.seedError) + '</span></div>' : '') + '<p class="lead">No one is here yet.</p><p class="empty">Add the first person under “Everyone’s notes” below, or load the starter file. The passcode you just typed becomes the family passcode with the first save.</p><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Load starter file<input type="file" id="seed" accept=".json,application/json" hidden></label></div></div>'; return; }
     var ppl = coming();
     if (!ppl.length) { el.innerHTML = '<div class="sheet"><p class="lead">Tap the names above to pick who is coming.</p></div>'; return; }
 
@@ -662,7 +664,13 @@ input[type="text"] { flex: 1 1 150px; }
           return jobs.then(function () { n++; S.loadMsg = 'Loading the starter notes: ' + n + ' of ' + todo.length; show(); return put(job[0], job[1]); });
         }, Promise.resolve());
       }).then(function () { S.loadMsg = ''; toast('Starter notes loaded.'); return refresh(); })
-        .catch(function (e) { S.loadMsg = ''; fail(e); return refresh(); });
+        .catch(function (e) {
+          S.loadMsg = '';
+          S.seedError = e && e.code === 'denied' ? 'This sheet already has a different passcode set.'
+            : e && e.detail ? 'The sheet answered: ' + e.detail
+            : 'The sheet did not answer (' + String((e && e.message) || e) + ').';
+          return refresh();
+        });
       return;
     }
     if (t.dataset.photo) {
