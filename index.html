@@ -65,6 +65,14 @@ section { display: flex; flex-direction: column; gap: 14px; }
 .pick svg { width: 84px; height: 84px; opacity: .35; }
 .pick[aria-pressed="true"] { border: 2px solid var(--ink); background: var(--card); color: var(--ink); }
 .pick[aria-pressed="true"] svg { opacity: 1; }
+.pickwrap { position: relative; }
+.pen { position: absolute; top: -8px; right: -8px; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--ink); background: var(--card); color: var(--ink); display: grid; place-items: center; padding: 0; }
+.pen svg { width: 16px; height: 16px; }
+.name { border: 0; background: none; padding: 0; font-weight: 800; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.tile .name { font-weight: 600; }
+dialog.person { border: 2px solid var(--ink); border-radius: 22px; background: var(--card); color: var(--ink); padding: 18px; width: min(560px, calc(100% - 24px)); max-height: 88vh; overflow: auto; }
+dialog.person::backdrop { background: rgba(43, 58, 103, .4); }
+dialog.person .card { border: 0; padding: 0; background: transparent; }
 .quick { display: flex; flex-wrap: wrap; gap: 8px; }
 .link { background: none; border: 0; padding: 6px 4px; color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--pink); text-decoration-thickness: 3px; text-underline-offset: 4px; }
 
@@ -213,6 +221,7 @@ input[type="text"] { flex: 1 1 150px; }
   <p class="hint"><button class="link" type="button" data-act="forget">Forget the passcode on this device</button></p>
   </div>
 </div>
+<dialog class="person" id="person" aria-label="Edit notes"><div id="person-body"></div></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="config.js"></script>
@@ -236,7 +245,7 @@ input[type="text"] { flex: 1 1 150px; }
   };
   var STOP = { cake: 1, cakes: 1, layer: 1, from: 1, childhood: 1, based: 1, flavour: 1, flavours: 1, the: 1, and: 1, with: 1, of: 1, double: 1, indulgence: 1 };
 
-  var S = { status: 'loading', people: [], dates: [], photos: {}, off: {}, open: {}, editing: null, confirm: null, canWrite: true };
+  var S = { status: 'loading', people: [], dates: [], photos: {}, off: {}, open: {}, kind: {}, sheet: null, editing: null, confirm: null, canWrite: true };
   /* Where the notes live: a Google Sheet behind an Apps Script web app (setup/family-sheet.gs).
      Every value is sealed in this browser with a key made from the family passcode, so the sheet,
      the script and this public repo only ever hold ciphertext. */
@@ -374,6 +383,11 @@ input[type="text"] { flex: 1 1 150px; }
       '<path d="M0,42 Q-14,36 -15,24 Q-3,28 0,42Z" fill="#4F8F6B"/><path d="M0,34 Q14,28 15,16 Q3,20 0,34Z" fill="#7CC4A0"/>' + head(KINDS[i % 3], c[0], c[1]) + '</svg>';
   }
 
+  var PEN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14l1-4 8-8 3 3-8 8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  /* A person's name, wherever it shows, opens their notes for editing. */
+  function pbtn(p) { return '<button class="name" type="button" data-act="sheet" data-id="' + esc(p.id) + '">' + esc(p.name) + '</button>'; }
+  function openSheet(id) { S.sheet = id; S.editing = null; S.confirm = null; render(); var d = $('person'); if (!d.open) d.showModal(); }
+  function closeSheet() { S.sheet = null; var d = $('person'); if (d.open) d.close(); render(); }
   function coming() { return S.people.filter(function (p) { return !S.off[p.id]; }); }
   function names(arr) { return arr.length < 2 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]; }
 
@@ -432,7 +446,8 @@ input[type="text"] { flex: 1 1 150px; }
 
   function renderWho() {
     $('who').innerHTML = S.people.map(function (p, i) {
-      return '<button class="pick" type="button" data-act="toggle" data-id="' + esc(p.id) + '" aria-pressed="' + (!S.off[p.id]) + '">' + avatar(i, p) + esc(p.name) + '</button>';
+      return '<div class="pickwrap"><button class="pick" type="button" data-act="toggle" data-id="' + esc(p.id) + '" aria-pressed="' + (!S.off[p.id]) + '">' + avatar(i, p) + esc(p.name) + '</button>' +
+        (S.canWrite ? '<button class="pen" type="button" data-act="sheet" data-id="' + esc(p.id) + '" aria-label="Edit notes for ' + esc(p.name) + '">' + PEN + '</button>' : '') + '</div>';
     }).join('');
     var houses = {}, q = '';
     S.people.forEach(function (p) { if (p.household) (houses[p.household] = houses[p.household] || []).push(p.id); });
@@ -460,12 +475,17 @@ input[type="text"] { flex: 1 1 150px; }
         var away = !!S.off[p.id];
         if (!away && rank < 2) stop = true;
         if (!away && (rank === 2 || rank === 3)) good = true;
-        rows.push('<div class="res ' + k[1] + '"><b>' + esc(p.name) + '</b>' + k[2] + '<b>' + esc(m.join(', ')) + '</b>' + (away ? ' <span class="away">(not coming this time)</span>' : '') + '</div>');
+        rows.push('<div class="res ' + k[1] + '">' + pbtn(p) + k[2] + '<b>' + esc(m.join(', ')) + '</b>' + (away ? ' <span class="away">(not coming this time)</span>' : '') + '</div>');
       });
     });
     var word = '“' + esc($('q').value.trim()) + '”';
     var lead = !rows.length ? 'Nothing noted about ' + word + ' yet.' : stop ? 'Careful with ' + word + '.' : good ? word + ' looks like a good pick.' : 'Here is what is noted about ' + word + '.';
-    el.innerHTML = '<p class="lead">' + lead + '</p>' + rows.join('');
+    var who = $('qa-who') ? $('qa-who').value : '', kind = $('qa-kind') ? $('qa-kind').value : 'avoid';
+    var add = !S.canWrite || !S.people.length ? '' : '<div class="formrow"><span>Note ' + word + ' for</span><select id="qa-who" aria-label="Who">' +
+      S.people.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === who ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select><select id="qa-kind" aria-label="What to note">' +
+      [['avoid', "doesn't eat it"], ['likes', 'loves it'], ['allergies', 'is allergic to it'], ['cakes', 'cake pick']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === kind ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+      '</select><button class="btn ghost" type="button" data-act="quickadd">Add</button></div>';
+    el.innerHTML = '<p class="lead">' + lead + '</p>' + rows.join('') + add;
   }
   function renderMeal() {
     var el = $('meal');
@@ -482,13 +502,13 @@ input[type="text"] { flex: 1 1 150px; }
       seen[k].who.push(name);
     }
     ppl.forEach(function (p) {
-      list(p, 'allergies').forEach(function (t) { tile(t, p.name, true); });
-      list(p, 'avoid').forEach(function (t) { tile(t, p.name, false); });
+      list(p, 'allergies').forEach(function (t) { tile(t, p, true); });
+      list(p, 'avoid').forEach(function (t) { tile(t, p, false); });
     });
     tiles.sort(function (a, b) { return (b.allergy - a.allergy) || (b.who.length - a.who.length); });
     var h = '<p class="lead">' + (tiles.length ? 'Leave these out' : 'Nothing to leave out for this group.') + '</p>';
     if (tiles.length) h += '<div class="tiles">' + tiles.map(function (t) {
-      return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + esc(names(t.who)) + '</span></div>';
+      return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + names(t.who.map(pbtn)) + '</span></div>';
     }).join('') + '</div>';
     var cl = clashes(ppl), flagged = {};
     cl.forEach(function (c) { flagged[c.key] = 1; });
@@ -501,7 +521,7 @@ input[type="text"] { flex: 1 1 150px; }
 
     function perPerson(k) {
       return ppl.filter(function (p) { return list(p, k).length; }).map(function (p) {
-        return '<div class="row"><b>' + esc(p.name) + '</b><span>' + list(p, k).map(function (it) {
+        return '<div class="row">' + pbtn(p) + '<span>' + list(p, k).map(function (it) {
           return flagged[p.id + '|' + it] ? '<span class="warn">' + esc(it) + ' (check)</span>' : esc(it);
         }).join(', ') + '</span></div>';
       }).join('');
@@ -515,7 +535,7 @@ input[type="text"] { flex: 1 1 150px; }
     cols += block('likes', 'var(--leaf)', 'Favourite foods', '', likes || '<p class="empty">No favourites noted for this group yet.</p>');
     var other = ppl.filter(function (p) { return list(p, 'medical').length || list(p, 'notes').length; });
     if (other.length) cols += block('other', 'var(--lilac)', 'Good to know', names(other.map(function (p) { return p.name; })), other.map(function (p) {
-      return '<div class="row"><b>' + esc(p.name) + '</b><span>' + esc(list(p, 'medical').concat(list(p, 'notes')).join('; ')) + '</span></div>';
+      return '<div class="row">' + pbtn(p) + '<span>' + esc(list(p, 'medical').concat(list(p, 'notes')).join('; ')) + '</span></div>';
     }).join(''));
     el.innerHTML = '<div class="sheet">' + h + '<div class="folds">' + cols + '</div></div>';
   }
@@ -551,29 +571,44 @@ input[type="text"] { flex: 1 1 150px; }
   function renderFamily() {
     if (S.status !== 'ok') { $('family').innerHTML = ''; $('fam-hint').textContent = ''; return; }
     $('fam-hint').textContent = S.canWrite ? 'Tap Edit on a card to add or remove things. Changes save by themselves.' : 'You can read these notes. Ask Mira if something needs changing.';
-    var h = S.people.map(function (p, i) {
-      var ed = S.editing === p.id, pid = esc(p.id);
+    function cardHTML(p, i, inSheet) {
+      var ed = inSheet || S.editing === p.id, pid = esc(p.id);
       var bd = p.bdayMonth && p.bdayDay ? 'Birthday ' + p.bdayDay + ' ' + MONTHS[p.bdayMonth - 1] : '';
       var c = '<article class="card' + (ed ? ' editing' : '') + '"><div class="card-head">' + avatar(i, p) + '<div class="who"><h3>' + esc(p.name) + '</h3><p class="rel">' + esc([p.relation, bd].filter(Boolean).join(' · ')) + '</p></div>' +
-        (S.canWrite ? '<button class="btn ghost" type="button" data-act="edit" data-id="' + pid + '">' + (ed ? 'Done' : 'Edit') + '</button>' : '') + '</div>';
+        (!S.canWrite ? '' : inSheet ? '<button class="btn" type="button" data-act="sheet-close">Done</button>'
+          : '<button class="btn ghost" type="button" data-act="edit" data-id="' + pid + '">' + (ed ? 'Done' : 'Edit') + '</button>') + '</div>';
       if (ed) {
-        c += '<div class="field"><span class="label">Name and who they are</span><div class="formrow"><input type="text" id="p-' + pid + '-name" data-prop="name" data-id="' + pid + '" value="' + esc(p.name) + '" aria-label="Name"><input type="text" id="p-' + pid + '-relation" data-prop="relation" data-id="' + pid + '" value="' + esc(p.relation) + '" placeholder="e.g. Brian\'s wife" aria-label="Who they are"></div></div>' +
-          '<div class="field"><span class="label">Birthday</span><div class="formrow" data-bd="' + pid + '">' + dayMonthSelects('bd-' + pid, p.bdayMonth, p.bdayDay) + '</div></div>' +
-          '<div class="field"><span class="label">Photo</span><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">' + (S.photos[p.id] ? 'Change photo' : 'Add a photo') + '<input type="file" accept="image/*" data-photo="' + pid + '" hidden></label></div></div>';
+        var kind = S.kind[p.id] || 'avoid';
+        c += '<div class="formrow"><input type="text" id="add-' + pid + '" data-add="1" data-id="' + pid + '" placeholder="Add something, e.g. prawns" aria-label="Add a note">' +
+          '<select id="kind-' + pid + '" data-kind="' + pid + '" aria-label="What kind of note">' +
+          FIELDS.map(function (f) { return '<option value="' + f.k + '"' + (f.k === kind ? ' selected' : '') + '>' + f.label + '</option>'; }).join('') +
+          '</select><button class="btn" type="button" data-act="add" data-id="' + pid + '">Add</button></div>';
       }
       var any = false;
       FIELDS.forEach(function (f) {
-        var items = list(p, f.k); if (!items.length && !ed) return; any = true;
+        var items = list(p, f.k); if (!items.length) return; any = true;
         c += '<div class="field"><span class="label">' + f.label + '</span><div class="chips">' + items.map(function (it, n) {
           return '<span class="chip ' + f.k + '">' + esc(it) + (ed ? '<button class="x" type="button" data-act="rm" data-id="' + pid + '" data-f="' + f.k + '" data-n="' + n + '" aria-label="Remove ' + esc(it) + '">×</button>' : '') + '</span>';
-        }).join('') + '</div>' + (ed ? '<div class="formrow"><input type="text" id="add-' + pid + '-' + f.k + '" data-add="1" data-id="' + pid + '" data-f="' + f.k + '" placeholder="' + f.ph + '" aria-label="Add to ' + f.label + '"><button class="btn ghost" type="button" data-act="add" data-id="' + pid + '" data-f="' + f.k + '">Add</button></div>' : '') + '</div>';
+        }).join('') + '</div></div>';
       });
       if (!any) c += '<p class="empty">Nothing noted yet.</p>';
-      if (ed) c += S.confirm === p.id
-        ? '<div class="formrow"><span>Remove ' + esc(p.name) + ' and all their notes?</span><button class="btn danger" type="button" data-act="del-yes" data-id="' + pid + '">Yes, remove</button><button class="btn ghost" type="button" data-act="del-no">Keep</button></div>'
-        : '<div><button class="link" type="button" data-act="del-ask" data-id="' + pid + '">Remove ' + esc(p.name) + '</button></div>';
+      if (ed) {
+        c += '<details class="fold" data-key="more-' + pid + '"' + (S.open['more-' + p.id] ? ' open' : '') + '><summary><span class="t">Name, birthday and photo</span></summary><div class="fold-body">' +
+          '<div class="formrow"><input type="text" id="p-' + pid + '-name" data-prop="name" data-id="' + pid + '" value="' + esc(p.name) + '" aria-label="Name"><input type="text" id="p-' + pid + '-relation" data-prop="relation" data-id="' + pid + '" value="' + esc(p.relation) + '" placeholder="e.g. Brian\'s wife" aria-label="Who they are"></div>' +
+          '<div class="formrow" data-bd="' + pid + '"><span>Birthday</span>' + dayMonthSelects('bd-' + pid, p.bdayMonth, p.bdayDay) + '</div>' +
+          '<div class="formrow"><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">' + (S.photos[p.id] ? 'Change photo' : 'Add a photo') + '<input type="file" accept="image/*" data-photo="' + pid + '" hidden></label></div>' +
+          (S.confirm === p.id
+            ? '<div class="formrow"><span>Remove ' + esc(p.name) + ' and all their notes?</span><button class="btn danger" type="button" data-act="del-yes" data-id="' + pid + '">Yes, remove</button><button class="btn ghost" type="button" data-act="del-no">Keep</button></div>'
+            : '<div><button class="link" type="button" data-act="del-ask" data-id="' + pid + '">Remove ' + esc(p.name) + '</button></div>') +
+          '</div></details>';
+      }
       return c + '</article>';
-    }).join('');
+    }
+    var h = S.people.map(function (p, i) { return cardHTML(p, i, false); }).join('');
+    var at = -1;
+    S.people.forEach(function (p, i) { if (p.id === S.sheet) at = i; });
+    if (S.sheet && at < 0) { S.sheet = null; if ($('person').open) $('person').close(); }
+    $('person-body').innerHTML = at >= 0 ? cardHTML(S.people[at], at, true) : '';
     if (S.canWrite) h += '<article class="card"><h3>Add someone</h3><div class="field"><input type="text" id="new-name" placeholder="Name" aria-label="Name"><input type="text" id="new-relation" placeholder="Who they are, e.g. Emily\'s husband" aria-label="Who they are"></div><div><button class="btn" type="button" data-act="addperson">Add to the family</button></div></article>';
     $('family').innerHTML = h;
   }
@@ -600,7 +635,8 @@ input[type="text"] { flex: 1 1 150px; }
   function setField(id, k, arr) { write(id, function () { var o = {}; o[k] = arr; return DB.doc('people/' + id).update(o); }); }
 
   function addItems(id, k) {
-    var inp = $('add-' + id + '-' + k), p = person(id); if (!inp || !p) return;
+    var inp = $('add-' + id), p = person(id); if (!inp || !p) return;
+    k = $('kind-' + id).value;
     var cur = list(p, k).slice(), have = cur.map(function (x) { return x.toLowerCase(); });
     var fresh = inp.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x && have.indexOf(x.toLowerCase()) < 0; });
     inp.value = '';
@@ -612,6 +648,14 @@ input[type="text"] { flex: 1 1 150px; }
     var act = b.dataset.act, id = b.dataset.id, p;
     if (act === 'unlock') unlock();
     else if (act === 'forget') lock('');
+    else if (act === 'sheet') openSheet(id);
+    else if (act === 'sheet-close') closeSheet();
+    else if (act === 'quickadd') {
+      var term = $('q').value.trim(), qp = person($('qa-who').value), qk = $('qa-kind').value;
+      if (!term || !qp) return;
+      if (list(qp, qk).some(function (x) { return x.toLowerCase() === term.toLowerCase(); })) { toast('Already noted for ' + qp.name + '.'); return; }
+      setField(qp.id, qk, list(qp, qk).concat([term])); toast('Noted for ' + qp.name + '.');
+    }
     else if (act === 'retry') { S.status = 'loading'; render(); refresh(); }
     else if (act === 'toggle') { if (S.off[id]) delete S.off[id]; else S.off[id] = 1; saveOff(); render(); }
     else if (act === 'all') { S.off = {}; saveOff(); render(); }
@@ -622,7 +666,7 @@ input[type="text"] { flex: 1 1 150px; }
     else if (act === 'rm') { p = person(id); if (p) { var arr = list(p, b.dataset.f).slice(); arr.splice(+b.dataset.n, 1); setField(id, b.dataset.f, arr); } }
     else if (act === 'del-ask') { S.confirm = id; render(); }
     else if (act === 'del-no') { S.confirm = null; render(); }
-    else if (act === 'del-yes') { S.confirm = null; S.editing = null; write(id, function () { return DB.doc('people/' + id).delete(); }); }
+    else if (act === 'del-yes') { S.confirm = null; S.editing = null; S.sheet = null; if ($('person').open) $('person').close(); write(id, function () { return DB.doc('people/' + id).delete(); }); }
     else if (act === 'addperson') {
       var n = $('new-name').value.trim(); if (!n) { toast('Type a name first.'); return; }
       var rel = $('new-relation').value.trim(), ord = S.people.reduce(function (m, x) { return Math.max(m, +x.order || 0); }, 0) + 1;
@@ -638,6 +682,7 @@ input[type="text"] { flex: 1 1 150px; }
     else if (act === 'rmdate') write('date', function () { return DB.doc('dates/' + id).delete(); });
   });
   $('q').addEventListener('input', renderSearch);
+  $('person').addEventListener('close', function () { if (S.sheet) { S.sheet = null; render(); } });
   document.addEventListener('toggle', function (ev) { var k = ev.target.dataset && ev.target.dataset.key; if (k) S.open[k] = ev.target.open; }, true);
   document.addEventListener('keydown', function (ev) {
     if (ev.key !== 'Enter') return;
@@ -648,6 +693,7 @@ input[type="text"] { flex: 1 1 150px; }
   });
   document.addEventListener('change', function (ev) {
     var t = ev.target, o = {};
+    if (t.dataset.kind) { S.kind[t.dataset.kind] = t.value; return; }
     if (t.id === 'seed') {
       if (!t.files[0]) return;
       var seedFile = t.files[0];
@@ -728,6 +774,7 @@ input[type="text"] { flex: 1 1 150px; }
     key = null; token = '';
     try { localStorage.removeItem(KEYSTORE); localStorage.removeItem(CACHE); } catch (e) {}
     S.status = 'locked'; S.people = []; S.dates = []; S.photos = {}; S.editing = null;
+    S.sheet = null; if ($('person').open) $('person').close();
     $('gate-msg').textContent = msg || ''; render();
   }
   function unlock() {
