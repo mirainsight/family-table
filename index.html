@@ -33,6 +33,11 @@ html { color-scheme: light; }
 body { margin: 0; }
 [hidden] { display: none !important; }
 #app { display: flex; flex-direction: column; gap: 34px; }
+.loading { min-height: 58vh; align-items: center; justify-content: center; text-align: center; }
+.loading .lead { font-family: var(--display); font-size: 2rem; line-height: 1.2; }
+.spin { width: 120px; height: 120px; animation: spin 2.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
 .wrap { max-width: 980px; margin: 0 auto; padding-inline: 18px; padding-block: 20px 64px; display: flex; flex-direction: column; gap: 34px; }
 h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; line-height: 1.15; }
@@ -169,7 +174,15 @@ input[type="text"] { flex: 1 1 150px; }
     </div>
   </section>
 
-  <div id="app">
+  <section id="loading" class="loading" aria-live="polite">
+    <svg class="spin" viewBox="-20 -20 40 40" aria-hidden="true">
+      <circle cx="0" cy="-8.5" r="7.2" fill="#F2A0B5"/><circle cx="0" cy="-8.5" r="7.2" fill="#F2A0B5" transform="rotate(72)"/><circle cx="0" cy="-8.5" r="7.2" fill="#F2A0B5" transform="rotate(144)"/><circle cx="0" cy="-8.5" r="7.2" fill="#F2A0B5" transform="rotate(216)"/><circle cx="0" cy="-8.5" r="7.2" fill="#F2A0B5" transform="rotate(288)"/><circle r="5" fill="#F6C453"/>
+    </svg>
+    <p class="lead" id="load-msg">Setting the table…</p>
+    <p class="hint">Fetching the family notes. This takes a few seconds the first time.</p>
+  </section>
+
+  <div id="app" hidden>
   <section aria-labelledby="h-who">
     <div class="sec-head"><h2 id="h-who">Who's coming?</h2><div class="quick" id="quick"></div></div>
     <div class="people" id="who"></div>
@@ -228,7 +241,7 @@ input[type="text"] { flex: 1 1 150px; }
      Every value is sealed in this browser with a key made from the family passcode, so the sheet,
      the script and this public repo only ever hold ciphertext. */
   var CFG = window.FAMILY_TABLE || {}, subtle = (window.crypto && window.crypto.subtle) || null;
-  var SALT = 'family-table-v1', ITER = 600000, KEYSTORE = 'familyTableKey';
+  var SALT = 'family-table-v1', ITER = 600000, KEYSTORE = 'familyTableKey', CACHE = 'familyTableRows';
   var key = null, token = '', queue = {}, lastLoad = 0;
   var PREFIX = { people: 'p', dates: 'd' };
   var PHOTO_OK = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/;
@@ -276,6 +289,14 @@ input[type="text"] { flex: 1 1 150px; }
     var url = CFG.endpoint + (CFG.endpoint.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
     return fetch(url, { method: 'GET', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (res) {
       var rows = (res && res.rows) || [];
+      /* Keep the sealed rows on this device so the next visit opens at once
+         and only then checks the sheet for changes. */
+      try { localStorage.setItem(CACHE, JSON.stringify(rows)); } catch (e) {}
+      return apply(rows);
+    });
+  }
+  function apply(rows) {
+    return Promise.resolve().then(function () {
       return Promise.all(rows.map(function (r) { return unseal(r.v).then(function (o) { return { k: String(r.k), o: o }; }); })).then(function (all) {
         var good = all.filter(function (x) { return x.o && typeof x.o === 'object'; });
         if (rows.length && !good.length) return false;
@@ -447,7 +468,7 @@ input[type="text"] { flex: 1 1 150px; }
   function renderMeal() {
     var el = $('meal');
     if (S.status === 'loading') { el.innerHTML = '<div class="sheet"><p class="empty">Fetching the family notes…</p></div>'; return; }
-    if (S.status === 'nodb') { el.innerHTML = '<div class="sheet"><p class="lead">The family notes could not be reached.</p><p class="empty">Check the internet connection, then close and open this page again.</p></div>'; return; }
+    if (S.status === 'nodb') { el.innerHTML = '<div class="sheet"><p class="lead">The family notes could not be reached.</p><p class="empty">The notes are slow to answer sometimes. Check the internet connection and try again.</p><div><button class="btn" type="button" data-act="retry">Try again</button></div></div>'; return; }
     if (!S.people.length) { el.innerHTML = '<div class="sheet"><p class="lead">No one is here yet.</p><p class="empty">Add the first person under “Everyone’s notes” below, or load the starter file. The passcode you just typed becomes the family passcode with the first save.</p><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Load starter file<input type="file" id="seed" accept=".json,application/json" hidden></label></div></div>'; return; }
     var ppl = coming();
     if (!ppl.length) { el.innerHTML = '<div class="sheet"><p class="lead">Tap the names above to pick who is coming.</p></div>'; return; }
@@ -589,6 +610,7 @@ input[type="text"] { flex: 1 1 150px; }
     var act = b.dataset.act, id = b.dataset.id, p;
     if (act === 'unlock') unlock();
     else if (act === 'forget') lock('');
+    else if (act === 'retry') { S.status = 'loading'; render(); refresh(); }
     else if (act === 'toggle') { if (S.off[id]) delete S.off[id]; else S.off[id] = 1; saveOff(); render(); }
     else if (act === 'all') { S.off = {}; saveOff(); render(); }
     else if (act === 'none') { S.people.forEach(function (x) { S.off[x.id] = 1; }); saveOff(); render(); }
@@ -626,17 +648,21 @@ input[type="text"] { flex: 1 1 150px; }
     var t = ev.target, o = {};
     if (t.id === 'seed') {
       if (!t.files[0]) return;
-      toast('Loading the starter notes…');
-      t.files[0].text().then(function (txt) {
-        var d = JSON.parse(txt), jobs = Promise.resolve();
+      var seedFile = t.files[0];
+      S.status = 'loading'; S.loadMsg = 'Loading the starter notes…'; render();
+      seedFile.text().then(function (txt) {
+        var d = JSON.parse(txt), todo = [], n = 0;
         (d.people || []).forEach(function (p) {
           var body = bare(p), photo = body.photo; delete body.photo;
-          jobs = jobs.then(function () { return put('p:' + p.id, body); });
-          if (PHOTO_OK.test(photo || '')) jobs = jobs.then(function () { return put('f:' + p.id, { src: photo }); });
+          todo.push(['p:' + p.id, body]);
+          if (PHOTO_OK.test(photo || '')) todo.push(['f:' + p.id, { src: photo }]);
         });
-        (d.dates || []).forEach(function (x) { jobs = jobs.then(function () { return put('d:' + x.id, bare(x)); }); });
-        return jobs;
-      }).then(function () { toast('Starter notes loaded.'); return refresh(); }).catch(fail);
+        (d.dates || []).forEach(function (x) { todo.push(['d:' + x.id, bare(x)]); });
+        return todo.reduce(function (jobs, job) {
+          return jobs.then(function () { n++; S.loadMsg = 'Loading the starter notes: ' + n + ' of ' + todo.length; show(); return put(job[0], job[1]); });
+        }, Promise.resolve());
+      }).then(function () { S.loadMsg = ''; toast('Starter notes loaded.'); return refresh(); })
+        .catch(function (e) { S.loadMsg = ''; fail(e); return refresh(); });
       return;
     }
     if (t.dataset.photo) {
@@ -672,19 +698,27 @@ input[type="text"] { flex: 1 1 150px; }
 
   function show() {
     var off = S.status === 'locked' || S.status === 'noconfig';
-    $('gate').hidden = !off; $('app').hidden = off;
+    var busy = S.status === 'loading';
+    $('gate').hidden = !off; $('app').hidden = off || busy; $('loading').hidden = !busy;
+    $('load-msg').textContent = S.loadMsg || 'Setting the table…';
     $('gate-none').hidden = S.status !== 'noconfig'; $('gate-form').hidden = S.status === 'noconfig';
   }
-  function refresh() {
+  /* The sheet script is usually quick but now and then stalls or drops a
+     request, so try three times before saying it cannot be reached. */
+  function refresh(tries) {
+    tries = tries || 0;
     lastLoad = Date.now();
     return load().then(function (ok) {
       if (ok === false) { lock('That passcode did not open the notes. Try again.'); return; }
       S.status = 'ok'; render();
-    }).catch(function () { if (S.status !== 'ok') { S.status = 'nodb'; render(); } });
+    }).catch(function () {
+      if (tries < 2) return new Promise(function (r) { setTimeout(r, 1500); }).then(function () { return refresh(tries + 1); });
+      if (S.status !== 'ok') { S.status = 'nodb'; render(); }
+    });
   }
   function lock(msg) {
     key = null; token = '';
-    try { localStorage.removeItem(KEYSTORE); } catch (e) {}
+    try { localStorage.removeItem(KEYSTORE); localStorage.removeItem(CACHE); } catch (e) {}
     S.status = 'locked'; S.people = []; S.dates = []; S.photos = {}; S.editing = null;
     $('gate-msg').textContent = msg || ''; render();
   }
@@ -706,7 +740,14 @@ input[type="text"] { flex: 1 1 150px; }
   var saved = null;
   try { saved = localStorage.getItem(KEYSTORE); } catch (e) {}
   if (!CFG.endpoint || !subtle) { S.status = 'noconfig'; render(); }
-  else if (saved) { useBits(unb64(saved)).then(function () { render(); return refresh(); }).catch(function () { lock(''); }); }
+  else if (saved) {
+    useBits(unb64(saved)).then(function () {
+      var kept = null;
+      try { kept = JSON.parse(localStorage.getItem(CACHE) || 'null'); } catch (e) {}
+      if (!kept || !kept.length) return refresh();
+      return apply(kept).then(function (ok) { if (ok) { S.status = 'ok'; render(); } return refresh(); });
+    }).catch(function () { lock(''); });
+  }
   else { S.status = 'locked'; render(); }
 })();
 </script>
