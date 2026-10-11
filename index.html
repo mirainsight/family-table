@@ -231,8 +231,8 @@ input[type="text"] { flex: 1 1 150px; }
 <script>
 (function () {
   var FIELDS = [
-    { k: 'allergies', label: 'Allergic to', ph: 'e.g. prawns' },
-    { k: 'avoid', label: "Doesn't eat", ph: 'e.g. coriander' },
+    { k: 'allergies', label: 'Allergies/hate', ph: 'e.g. prawns' },
+    { k: 'avoid', label: 'Dislikes', ph: 'e.g. coriander' },
     { k: 'likes', label: 'Loves', ph: 'e.g. pan mee' },
     { k: 'cakes', label: 'Cake picks', ph: 'e.g. red velvet' },
     { k: 'medical', label: 'Health notes', ph: 'e.g. gout prone' },
@@ -428,7 +428,7 @@ input[type="text"] { flex: 1 1 150px; }
   function clashes(ppl) {
     var out = [];
     ppl.forEach(function (a) {
-      [['allergies', ' is allergic to '], ['avoid', " doesn't eat "]].forEach(function (kind) {
+      [['allergies', " can't have "], ['avoid', ' dislikes ']].forEach(function (kind) {
         list(a, kind[0]).forEach(function (term) {
           ppl.forEach(function (b) {
             if (b.id === a.id) return;
@@ -494,7 +494,7 @@ input[type="text"] { flex: 1 1 150px; }
   function renderSearch() {
     var q = $('q').value.toLowerCase().trim(), el = $('found');
     if (q.length < 2 || S.status !== 'ok') { el.innerHTML = ''; return; }
-    var KINDS_Q = [['allergies', 'bad', ' is allergic to '], ['avoid', 'no', " doesn't eat "], ['likes', 'yes', ' loves '], ['cakes', 'yes', ' picked the cake '], ['notes', '', ': ']];
+    var KINDS_Q = [['allergies', 'bad', " can't have (allergy/hate) "], ['avoid', 'no', ' dislikes '], ['likes', 'yes', ' loves '], ['cakes', 'yes', ' picked the cake '], ['notes', '', ': ']];
     var rows = [], stop = false, good = false;
     KINDS_Q.forEach(function (k, rank) {
       S.people.forEach(function (p) {
@@ -511,7 +511,7 @@ input[type="text"] { flex: 1 1 150px; }
     var who = $('qa-who') ? $('qa-who').value : '', kind = $('qa-kind') ? $('qa-kind').value : 'avoid';
     var add = !S.canWrite || !S.people.length ? '' : '<div class="formrow"><span>Note ' + word + ' for</span><select id="qa-who" aria-label="Who">' +
       S.people.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === who ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select><select id="qa-kind" aria-label="What to note">' +
-      [['avoid', "doesn't eat it"], ['likes', 'loves it'], ['allergies', 'is allergic to it'], ['cakes', 'cake pick']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === kind ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+      [['avoid', 'dislikes it'], ['likes', 'loves it'], ['allergies', 'allergy/hates it'], ['cakes', 'cake pick']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === kind ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
       '</select><button class="btn ghost" type="button" data-act="quickadd">Add</button></div>';
     el.innerHTML = '<p class="lead">' + lead + '</p>' + rows.join('') + add;
   }
@@ -536,7 +536,7 @@ input[type="text"] { flex: 1 1 150px; }
     tiles.sort(function (a, b) { return (b.allergy - a.allergy) || (b.who.length - a.who.length); });
     var h = '<p class="lead">' + (tiles.length ? 'Leave these out' : 'Nothing to leave out for this group.') + '</p>';
     if (tiles.length) h += '<div class="tiles">' + tiles.map(function (t) {
-      return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + names(t.who.map(pbtn)) + '</span></div>';
+      return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy/hate</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + names(t.who.map(pbtn)) + '</span></div>';
     }).join('') + '</div>';
     var cl = clashes(ppl), flagged = {};
     cl.forEach(function (c) { flagged[c.key] = 1; });
