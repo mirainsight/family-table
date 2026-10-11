@@ -73,6 +73,7 @@ section { display: flex; flex-direction: column; gap: 14px; }
 dialog.person { border: 2px solid var(--ink); border-radius: 22px; background: var(--card); color: var(--ink); padding: 18px; width: min(560px, calc(100% - 24px)); max-height: 88vh; overflow: auto; }
 dialog.person::backdrop { background: rgba(43, 58, 103, .4); }
 dialog.person .card { border: 0; padding: 0; background: transparent; }
+.nudge { font-family: var(--display); font-size: 1.45rem; line-height: 1.25; color: var(--ink); }
 .quick { display: flex; flex-wrap: wrap; gap: 8px; }
 .link { background: none; border: 0; padding: 6px 4px; color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--pink); text-decoration-thickness: 3px; text-underline-offset: 4px; }
 
@@ -193,6 +194,7 @@ input[type="text"] { flex: 1 1 150px; }
   <div id="app" hidden>
   <section aria-labelledby="h-who">
     <div class="sec-head"><h2 id="h-who">Who's coming?</h2><div class="quick" id="quick"></div></div>
+    <p class="hint" id="who-hint"></p>
     <div class="people" id="who"></div>
   </section>
 
@@ -480,6 +482,9 @@ input[type="text"] { flex: 1 1 150px; }
       q += '<button class="link" type="button" data-act="none">Clear</button>';
     }
     $('quick').innerHTML = q;
+    var n = coming().length, hint = $('who-hint');
+    hint.className = n ? 'hint' : 'nudge';
+    hint.textContent = !S.people.length ? '' : n ? 'Tap a face to add or remove someone. Tap the pencil to change their notes.' : 'Tap the face of each person who is eating.';
   }
 
   function block(key, color, title, teaser, inner) {
@@ -516,7 +521,7 @@ input[type="text"] { flex: 1 1 150px; }
     if (S.status === 'nodb') { el.innerHTML = '<div class="sheet"><p class="lead">The family notes could not be reached.</p><p class="empty">The notes are slow to answer sometimes. Check the internet connection and try again.</p><div><button class="btn" type="button" data-act="retry">Try again</button></div></div>'; return; }
     if (!S.people.length) { el.innerHTML = '<div class="sheet">' + (S.seedError ? '<div class="alert"><b>The starter notes did not load.</b><span>' + esc(S.seedError) + '</span></div>' : '') + '<p class="lead">No one is here yet.</p><p class="empty">Add the first person under “Everyone’s notes” below, or load the starter file. The passcode you just typed becomes the family passcode with the first save.</p><div><label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Load starter file<input type="file" id="seed" accept=".json,application/json" hidden></label></div></div>'; return; }
     var ppl = coming();
-    if (!ppl.length) { el.innerHTML = '<div class="sheet"><p class="lead">Tap the names above to pick who is coming.</p></div>'; return; }
+    if (!ppl.length) { el.innerHTML = '<div class="sheet"><p class="lead">Nobody is picked yet.</p><p class="empty">Tap the faces above, or “Everyone”. What to leave out, cake ideas and favourite foods will then show here.</p></div>'; return; }
 
     var tiles = [], seen = {};
     function tile(t, name, allergy) {
