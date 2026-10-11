@@ -534,13 +534,18 @@ input[type="text"] { flex: 1 1 150px; }
       list(p, 'avoid').forEach(function (t) { tile(t, p, false); });
     });
     tiles.sort(function (a, b) { return (b.allergy - a.allergy) || (b.who.length - a.who.length); });
-    var h = '<p class="lead">' + (tiles.length ? 'Leave these out' : 'Nothing to leave out for this group.') + '</p>';
-    if (tiles.length) h += '<div class="tiles">' + tiles.map(function (t) {
+    function tileHTML(t) {
       return '<div class="tile' + (t.allergy ? ' bad' : '') + '">' + (t.allergy ? '<span class="tag">Allergy/hate</span>' : '') + '<b>' + esc(t.label) + '</b><span>' + names(t.who.map(pbtn)) + '</span></div>';
-    }).join('') + '</div>';
+    }
+    /* Only what must stay off the table shows up front; plain dislikes fold away with the rest. */
+    var must = tiles.filter(function (t) { return t.allergy; }), mild = tiles.filter(function (t) { return !t.allergy; });
+    var h = '<p class="lead">' + (must.length ? 'Leave these out' : 'No allergies or hates in this group.') + '</p>';
+    if (must.length) h += '<div class="tiles">' + must.map(tileHTML).join('') + '</div>';
     var cl = clashes(ppl), flagged = {};
     cl.forEach(function (c) { flagged[c.key] = 1; });
-    var cols = '';
+    var cols = !mild.length ? '' : block('avoid', 'var(--pink)', 'Dislikes',
+      mild.slice(0, 3).map(function (t) { return t.label; }).join(', ') + (mild.length > 3 ? ' +' + (mild.length - 3) : ''),
+      '<div class="tiles">' + mild.map(tileHTML).join('') + '</div>');
     if (cl.length) cols += block('clash', 'var(--rose)', 'Favourites that clash', cl.length + ' to check', '<ul class="plain">' + cl.map(function (c) { return '<li class="' + (c.bad ? 'warn' : '') + '">' + c.text + '</li>'; }).join('') + '</ul>');
 
     var avoid = {}, order = [];
